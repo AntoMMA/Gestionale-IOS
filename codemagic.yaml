@@ -22,7 +22,6 @@ workflows:
           echo "Preparing web assets directory..."
           mkdir www
           
-          # Sposta i file uno a uno in modo esplicito, ignorando gli errori se un file non esiste.
           mv index.html www/ || true
           mv style.css www/ || true
           mv main.js www/ || true
@@ -30,32 +29,35 @@ workflows:
           mv logo.jpg www/ || true
           mv Cursore1.png www/ || true
           
-          # Imposta i permessi di esecuzione per il binario di Capacitor
           chmod +x ./node_modules/.bin/cap
 
-          # Inizializza Capacitor, creando il file capacitor.config.json in modo affidabile
           echo "Initializing Capacitor..."
           npx cap init "$APP_NAME" "$APP_IDENTIFIER" --web-dir www
 
-          # Aggiunge la piattaforma iOS
           echo "Adding iOS platform..."
           npx cap add ios
 
-          # Sincronizza i file web con il progetto iOS
-          echo "Synchronizing web assets..."
+          echo "Synchronizing native dependencies..."
           npx cap sync ios
+
+          # Questo è il passaggio chiave per risolvere l'errore
+          echo "Installing CocoaPods dependencies..."
+          cd ios
+          pod install
 
       - name: Build iOS App
         script: |
-          # Vai alla directory ios e verifica l'esistenza del workspace
-          cd ios
-          if [ ! -d "App.xcworkspace" ]; then
-            echo "Error: App.xcworkspace does not exist in the ios directory. Build script failed to create it."
+          # Per sicurezza, torniamo alla cartella principale
+          cd ..
+          
+          # Ora verifichiamo l'esistenza del workspace prima di buildare
+          if [ ! -d "ios/App.xcworkspace" ]; then
+            echo "Error: App.xcworkspace does not exist in the ios directory."
             exit 1
           fi
 
           echo "Building iOS archive..."
-          xcodebuild -workspace App.xcworkspace \
+          xcodebuild -workspace ios/App.xcworkspace \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
