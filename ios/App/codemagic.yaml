@@ -1,0 +1,88 @@
+# Definizione di un workflow di build su Codemagic
+workflows:
+  ios-build-workflow:
+    name: iOS Build and Publish
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      node: '20'
+      vars:
+        APP_NAME: "GestionaleEmerals"
+        APP_IDENTIFIER: "com.emeralstrasporti.gestionale"
+    
+    scripts:
+      - name: Clean up and prepare web assets
+        script: |
+          echo "Removing existing node_modules, ios and www directory..."
+          rm -rf node_modules ios www
+
+          # Verifica se index.html esiste nel repository prima di procedere
+          if [ ! -f "index.html" ]; then
+            echo "Error: index.html not found in the root directory. Please ensure it's in your repository."
+            exit 1
+          fi
+
+          echo "Preparing web assets directory..."
+          mkdir www
+          
+          # Sposta tutti i file HTML, CSS e JS in www
+          echo "Moving web assets to www/"
+          mv *.html www/ || true
+          mv *.css www/ || true
+          mv *.js www/ || true
+          mv *.jpg www/ || true
+          mv *.png www/ || true
+          
+          # Verifica che index.html sia stato spostato correttamente
+          if [ ! -f "www/index.html" ]; then
+            echo "Error: index.html was not moved to the www directory. Check the previous step."
+            exit 1
+          fi
+
+          # Mostra i contenuti della cartella www per debug
+          echo "Contents of the www directory:"
+          ls -la www/
+
+      - name: Install dependencies and Configure Capacitor
+        script: |
+          echo "Installing dependencies..."
+          npm install
+
+          # Imposta i permessi di esecuzione per il binario di Capacitor
+          chmod +x ./node_modules/.bin/cap
+
+          # Inizializza Capacitor con la directory web corretta
+          npx cap init "$APP_NAME" "$APP_IDENTIFIER" --web-dir www
+
+          # Aggiunge la piattaforma iOS
+          echo "Adding iOS platform..."
+          npx cap add ios
+
+          # Sincronizza i file web con il progetto iOS
+          echo "Synchronizing web assets..."
+          npx cap sync ios
+
+      - name: Build iOS App
+        script: |
+          # Vai alla directory ios e verifica l'esistenza del workspace
+          cd ios
+          if [ ! -d "App.xcworkspace" ]; then
+            echo "Error: App.xcworkspace does not exist in the ios directory. Build script failed to create it."
+            exit 1
+          fi
+
+          echo "Building iOS archive..."
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            archive -archivePath $PWD/build/$APP_NAME.xcarchive
+
+    artifacts:
+      - ios/build/**/*.ipa
+    
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_API_KEY
+        key_id: $APP_STORE_KEY_ID
+        issuer_id: $APP_STORE_ISSUER_ID 
