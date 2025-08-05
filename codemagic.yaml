@@ -14,7 +14,7 @@ workflows:
       - name: Clean up, install dependencies and prepare web assets
         script: |
           # Rimuove le cartelle node_modules e ios per un build pulito
-          echo "Removing existing node_modules and ios directory..."
+          echo "Removing existing node_modules, ios and www directory..."
           rm -rf node_modules ios www
 
           # Installa le dipendenze
@@ -23,10 +23,20 @@ workflows:
           # Crea la cartella 'www' e sposta i file web al suo interno
           echo "Preparing web assets directory..."
           mkdir www
-          cp *.html *.css *.js *.jpg *.png www/
+          
+          # Spostiamo i file uno a uno in modo esplicito per evitare errori
+          mv index.html www/
+          mv style.css www/
+          mv main.js www/
+          mv firebaseConfig.js www/
+          mv logo.jpg www/
+          mv Cursore1.png www/
+          
+          # Verifica che i file siano stati spostati correttamente
+          echo "Verifying files in www directory:"
+          ls -la www/
           
           # Inizializza Capacitor e configura la directory web
-          # Questo è un modo robusto per creare capacitor.config.json con la directory corretta
           npx cap init --web-dir www "$APP_NAME" "$APP_IDENTIFIER"
 
       - name: Configure and Sync iOS Platform
@@ -65,4 +75,4 @@ workflows:
       app_store_connect:
         api_key: $APP_STORE_API_KEY
         key_id: $APP_STORE_KEY_ID
-        issuer_id: $APP_STORE_ISSUER_ID
+        issuer_id: $APP_STORE_ISSUER_ID 
