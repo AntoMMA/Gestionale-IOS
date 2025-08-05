@@ -9,7 +9,8 @@ workflows:
     # Definizione dell'ambiente di compilazione.
     environment:
       xcode: latest
-      node: '18'
+      # Aggiornato Node.js alla versione 20 per risolvere l'avviso di compatibilità.
+      node: '20'
       vars:
         APP_NAME: "GestionaleEmerals"
         APP_IDENTIFIER: "com.emeralstrasporti.gestionale"
@@ -18,26 +19,31 @@ workflows:
     scripts:
       - name: Install dependencies and configure Capacitor
         script: |
+          # Pulisce la vecchia cartella ios per evitare l'errore 'platform already exists'.
+          if [ -d "ios" ]; then
+            echo "Removing existing iOS platform directory..."
+            rm -rf ios
+          fi
+          
           # Installa tutte le dipendenze.
           npm install
-          
+
           # Imposta i permessi di esecuzione per il binario di Capacitor.
           chmod +x ./node_modules/.bin/cap
 
           # Aggiunge la piattaforma iOS e sincronizza i file web.
-          # Eseguire i comandi in un unico blocco li rende più robusti.
           npx cap add ios
           npx cap sync ios
-
-          # Verifica se il workspace è stato creato, altrimenti il build fallirà.
-          if [ ! -d "ios/App.xcworkspace" ]; then
-            echo "Error: App.xcworkspace was not created by Capacitor."
-            exit 1
-          fi
 
       - name: Build iOS App
         script: |
           cd ios
+          # Verifica se il workspace è stato creato, altrimenti il build fallirà.
+          if [ ! -d "App.xcworkspace" ]; then
+            echo "Error: App.xcworkspace was not created by Capacitor."
+            exit 1
+          fi
+
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -sdk iphoneos \
@@ -48,7 +54,7 @@ workflows:
     artifacts:
       - ios/build/**/*.ipa
 
-    # Sezione di publishing, per caricare automaticamente l'app su App Store Connect.
+    # Sezione di publishing.
     publishing:
       app_store_connect:
         api_key: $APP_STORE_API_KEY
