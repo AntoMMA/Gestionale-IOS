@@ -2,61 +2,65 @@
 workflows:
   ios-build-workflow:
     name: iOS Build and Publish
-
-    # Durata massima del build in minuti.
     max_build_duration: 60
-
-    # Definizione dell'ambiente di compilazione.
     environment:
       xcode: latest
       node: '20'
       vars:
         APP_NAME: "GestionaleEmerals"
         APP_IDENTIFIER: "com.emeralstrasporti.gestionale"
-
-    # La sezione degli script.
+    
     scripts:
-      - name: Clean up and install dependencies
+      - name: Clean up, install dependencies and prepare web assets
         script: |
-          echo "Removing existing node_modules and ios directory for a clean build..."
-          rm -rf node_modules ios
+          # Rimuove le cartelle node_modules e ios per un build pulito
+          echo "Removing existing node_modules and ios directory..."
+          rm -rf node_modules ios www
+
+          # Installa le dipendenze
           npm install
 
-      - name: Configure Capacitor and check for iOS platform
-        script: |
-          chmod +x ./node_modules/.bin/cap
+          # Crea la cartella 'www' e sposta i file web al suo interno
+          echo "Preparing web assets directory..."
+          mkdir www
+          cp *.html *.css *.js *.jpg *.png www/
           
+          # Inizializza Capacitor e configura la directory web
+          # Questo è un modo robusto per creare capacitor.config.json con la directory corretta
+          npx cap init --web-dir www "$APP_NAME" "$APP_IDENTIFIER"
+
+      - name: Configure and Sync iOS Platform
+        script: |
+          # Imposta i permessi di esecuzione per il binario di Capacitor
+          chmod +x ./node_modules/.bin/cap
+
+          # Aggiunge la piattaforma iOS
           echo "Adding iOS platform..."
           npx cap add ios
-          
-          # Check if the ios directory was created successfully
-          if [ ! -d "ios" ]; then
-            echo "Error: The 'ios' directory was not created by 'npx cap add ios'. Check previous logs for errors."
-            exit 1
-          fi
 
+          # Sincronizza i file web con il progetto iOS
           echo "Synchronizing web assets..."
           npx cap sync ios
 
       - name: Build iOS App
         script: |
+          # Vai alla directory ios e verifica l'esistenza del workspace
           cd ios
           if [ ! -d "App.xcworkspace" ]; then
-            echo "Error: App.xcworkspace does not exist in the ios directory."
+            echo "Error: App.xcworkspace does not exist in the ios directory. Build script failed to create it."
             exit 1
           fi
 
+          echo "Building iOS archive..."
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
             archive -archivePath $PWD/build/$APP_NAME.xcarchive
 
-    # Definizione degli artefatti.
     artifacts:
       - ios/build/**/*.ipa
-
-    # Sezione di publishing.
+    
     publishing:
       app_store_connect:
         api_key: $APP_STORE_API_KEY
