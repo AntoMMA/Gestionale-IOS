@@ -9,7 +9,6 @@ workflows:
     # Definizione dell'ambiente di compilazione.
     environment:
       xcode: latest
-      # Aggiornato Node.js alla versione 20 per risolvere l'avviso di compatibilità.
       node: '20'
       vars:
         APP_NAME: "GestionaleEmerals"
@@ -17,30 +16,33 @@ workflows:
 
     # La sezione degli script.
     scripts:
-      - name: Install dependencies and configure Capacitor
+      - name: Clean up and install dependencies
         script: |
-          # Pulisce la vecchia cartella ios per evitare l'errore 'platform already exists'.
-          if [ -d "ios" ]; then
-            echo "Removing existing iOS platform directory..."
-            rm -rf ios
-          fi
-          
-          # Installa tutte le dipendenze.
+          echo "Removing existing node_modules and ios directory for a clean build..."
+          rm -rf node_modules ios
           npm install
 
-          # Imposta i permessi di esecuzione per il binario di Capacitor.
+      - name: Configure Capacitor and check for iOS platform
+        script: |
           chmod +x ./node_modules/.bin/cap
-
-          # Aggiunge la piattaforma iOS e sincronizza i file web.
+          
+          echo "Adding iOS platform..."
           npx cap add ios
+          
+          # Check if the ios directory was created successfully
+          if [ ! -d "ios" ]; then
+            echo "Error: The 'ios' directory was not created by 'npx cap add ios'. Check previous logs for errors."
+            exit 1
+          fi
+
+          echo "Synchronizing web assets..."
           npx cap sync ios
 
       - name: Build iOS App
         script: |
           cd ios
-          # Verifica se il workspace è stato creato, altrimenti il build fallirà.
           if [ ! -d "App.xcworkspace" ]; then
-            echo "Error: App.xcworkspace was not created by Capacitor."
+            echo "Error: App.xcworkspace does not exist in the ios directory."
             exit 1
           fi
 
