@@ -9,31 +9,33 @@ workflows:
       vars:
         APP_NAME: "GestionaleEmerals"
         APP_IDENTIFIER: "com.emeralstrasporti.gestionale"
-
+    
     scripts:
       - name: Clean up and install dependencies
         script: |
-          # Rimuove le cartelle per un build pulito
           echo "Removing existing node_modules, ios and www directory..."
           rm -rf node_modules ios www
-
-          # Installa le dipendenze
           npm install
 
       - name: Prepare web assets and configure Capacitor
         script: |
-          # Crea la cartella 'www' e sposta i file web al suo interno
           echo "Preparing web assets directory..."
           mkdir www
-          mv index.html www/
-          mv style.css www/
-          mv main.js www/
-          mv firebaseConfig.js www/
-          mv logo.jpg www/
-          mv Cursore1.png www/
-
+          
+          # Sposta i file uno a uno in modo esplicito, ignorando gli errori se un file non esiste.
+          mv index.html www/ || true
+          mv style.css www/ || true
+          mv main.js www/ || true
+          mv firebaseConfig.js www/ || true
+          mv logo.jpg www/ || true
+          mv Cursore1.png www/ || true
+          
           # Imposta i permessi di esecuzione per il binario di Capacitor
           chmod +x ./node_modules/.bin/cap
+
+          # Inizializza Capacitor, creando il file capacitor.config.json in modo affidabile
+          echo "Initializing Capacitor..."
+          npx cap init "$APP_NAME" "$APP_IDENTIFIER" --web-dir www
 
           # Aggiunge la piattaforma iOS
           echo "Adding iOS platform..."
@@ -61,7 +63,7 @@ workflows:
 
     artifacts:
       - ios/build/**/*.ipa
-
+    
     publishing:
       app_store_connect:
         api_key: $APP_STORE_API_KEY
