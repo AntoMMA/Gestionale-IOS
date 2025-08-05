@@ -22,12 +22,13 @@ workflows:
           echo "Preparing web assets directory..."
           mkdir www
           
-          mv index.html www/ || true
-          mv style.css www/ || true
-          mv main.js www/ || true
-          mv firebaseConfig.js www/ || true
-          mv logo.jpg www/ || true
-          mv Cursore1.png www/ || true
+          # Sposta i file uno a uno solo se esistono per evitare errori
+          if [ -f "index.html" ]; then mv index.html www/ || true; fi
+          if [ -f "style.css" ]; then mv style.css www/ || true; fi
+          if [ -f "main.js" ]; then mv main.js www/ || true; fi
+          if [ -f "firebaseConfig.js" ]; then mv firebaseConfig.js www/ || true; fi
+          if [ -f "logo.jpg" ]; then mv logo.jpg www/ || true; fi
+          if [ -f "Cursore1.png" ]; then mv Cursore1.png www/ || true; fi
           
           chmod +x ./node_modules/.bin/cap
 
@@ -40,15 +41,15 @@ workflows:
           echo "Synchronizing native dependencies..."
           npx cap sync ios
 
-          # Questo è il passaggio chiave per risolvere l'errore
+          # Questo è il passaggio chiave, ora con il percorso corretto
           echo "Installing CocoaPods dependencies..."
-          cd ios
+          cd ios/App
           pod install
 
       - name: Build iOS App
         script: |
           # Per sicurezza, torniamo alla cartella principale
-          cd ..
+          cd ../..
           
           # Ora verifichiamo l'esistenza del workspace prima di buildare
           if [ ! -d "ios/App.xcworkspace" ]; then
