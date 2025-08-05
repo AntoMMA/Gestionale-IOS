@@ -1,30 +1,71 @@
+# Definizione di un workflow di build su Codemagic
 workflows:
-  ios-workflow:
-    name: iOS build
+  # Il nome del workflow.
+  ios-build-workflow:
+    name: iOS Build and Publish
+
+    # Durata massima del build in minuti, per evitare build infiniti.
     max_build_duration: 60
+
+    # Definizione dell'ambiente di compilazione.
     environment:
+      # Scegliere la versione di Xcode più recente per le app iOS.
+      xcode: latest
+      # Scegliere la versione di Node.js. È una buona pratica specificarla per garantire la riproducibilità.
+      node: '18'
+      # Variabili d'ambiente, utili per riutilizzare lo stesso nome dell'app.
       vars:
         APP_NAME: "GestionaleEmerals"
-      xcode: latest
+        # Il Bundle ID della tua app, lo stesso che hai usato per Capacitor.
+        APP_IDENTIFIER: "com.emeralstrasporti.gestionale"
+
+    # La sezione degli script, dove vengono eseguiti tutti i comandi.
     scripts:
       - name: Install dependencies
         script: |
+          # Installa tutte le dipendenze definite nel tuo package.json
           npm install
-      - name: Sync Capacitor
+
+      - name: Add and Sync iOS Platform
         script: |
+          # Aggiunge la piattaforma iOS al progetto.
+          # Questo comando è fondamentale e mancava nel tuo file originale.
+          # Senza di esso, 'cap sync' fallirebbe.
+          npx cap add ios
+          # Sincronizza i file web con il progetto iOS.
+          # Questo passo è necessario per copiare l'HTML, CSS, JS nel progetto nativo.
           npx cap sync ios
-      - name: Build iOS
+
+      - name: Build iOS App
         script: |
+          # Entra nella cartella del progetto iOS.
           cd ios
+          
+          # Esegue la compilazione del progetto con xcodebuild.
+          # -workspace e -scheme App.xcworkspace/App sono i nomi di default per un progetto Capacitor.
+          # -sdk iphoneos specifica che è una build per dispositivo fisico.
+          # -configuration Release crea una build ottimizzata per la pubblicazione.
           xcodebuild -workspace App.xcworkspace \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
-            archive -archivePath $PWD/build/App.xcarchive
+            archive -archivePath $PWD/build/$APP_NAME.xcarchive
+
+    # Definizione degli artefatti, ovvero i file da salvare dopo un build.
+    # In questo caso, salviamo il file .ipa, pronto per l'App Store.
     artifacts:
       - ios/build/**/*.ipa
+
+    # Sezione di publishing, per caricare automaticamente l'app su App Store Connect.
     publishing:
       app_store_connect:
+        # Queste variabili d'ambiente devono essere configurate nel pannello di controllo di Codemagic
+        # per evitare di esporre dati sensibili.
         api_key: $APP_STORE_API_KEY
         key_id: $APP_STORE_KEY_ID
         issuer_id: $APP_STORE_ISSUER_ID
+        # Se usi un profilo di provisioning specifico, puoi configurarlo qui.
+        # Ad esempio:
+        # provisioning_profiles:
+        #   - name: "Nome Profilo di Provisioning"
+        #     type: "App Store"
